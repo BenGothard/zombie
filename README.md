@@ -33,6 +33,10 @@ may fail on heavily compressed documents.
 
 The page now supports dark mode automatically and features an improved layout for an epic experience.
 
+Your last analysis results are stored in your browser so you can reopen
+`docs/index.html` later and review them even without an internet
+connection.
+
 
 ## Local upload server
 If you prefer a minimal server-based approach, run `upload_server.py`:

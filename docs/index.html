@@ -73,6 +73,13 @@ function log(msg) {
   el.textContent += msg + '\n';
   el.scrollTop = el.scrollHeight;
 }
+window.addEventListener('load', () => {
+  const saved = localStorage.getItem('zombieOutput');
+  if (saved) {
+    document.getElementById('output').textContent = saved;
+    log('Loaded results from offline storage');
+  }
+});
 function getMonth(dateStr) {
   const d = new Date(dateStr);
   if (isNaN(d)) throw new Error('Unrecognized date format: ' + dateStr);
@@ -205,6 +212,7 @@ async function analyze() {
     } else {
       output.textContent = recurring.map(r => `${r.description}: $${r.amount.toFixed(2)}`).join('\n');
     }
+    localStorage.setItem('zombieOutput', output.textContent);
   } catch (err) {
     output.textContent = 'Error processing files: ' + err.message;
     log('Error: ' + err.message);
