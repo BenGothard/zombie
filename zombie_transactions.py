@@ -53,10 +53,35 @@ def _load_rows(file_path: str):
 
 
 def find_recurring_transactions_from_rows(
-    rows: Iterable[dict], months_threshold: int = 2
+    rows: Iterable[dict],
+    months_threshold: int = 2,
+    fuzzy: bool = False,
+    ratio_threshold: float = 0.8,
 ) -> List[Tuple[str, float]]:
-    """Return recurring (description, amount) pairs from an iterable of rows."""
+    """Return recurring (description, amount) pairs from an iterable of rows.
+
+    When ``fuzzy`` is ``True`` descriptions that are very similar will be grouped
+    together using :func:`difflib.SequenceMatcher`. The ``ratio_threshold``
+    controls how close descriptions must be to be considered equal.
+    """
+
+    if fuzzy:
+        from difflib import SequenceMatcher
+
     seen: Dict[Tuple[str, float], set] = defaultdict(set)
+
+    def _match_key(desc: str, amount: float) -> Tuple[str, float] | None:
+        if not fuzzy:
+            return (desc, amount)
+        lower_desc = desc.lower()
+        for (known_desc, amt) in seen.keys():
+            if amt != amount:
+                continue
+            ratio = SequenceMatcher(None, lower_desc, known_desc.lower()).ratio()
+            if ratio >= ratio_threshold:
+                return (known_desc, amt)
+        return (desc, amount)
+
     for row in rows:
         description = (row.get("Description") or row.get("Payee") or "").strip()
         amount_str = row.get("Amount")
@@ -71,18 +96,28 @@ def find_recurring_transactions_from_rows(
         if not description or month is None:
             continue
 
-        seen[(description, amount)].add(month)
+        key = _match_key(description, amount)
+        seen[key].add(month)
+
     return [
         (desc, amt) for (desc, amt), months in seen.items() if len(months) >= months_threshold
     ]
 
 
 def find_recurring_transactions(
-    file_path: str, months_threshold: int = 2
+    file_path: str,
+    months_threshold: int = 2,
+    fuzzy: bool = False,
+    ratio_threshold: float = 0.8,
 ) -> List[Tuple[str, float]]:
     """Return a list of (description, amount) that appear in multiple months."""
     rows = _load_rows(file_path)
-    return find_recurring_transactions_from_rows(rows, months_threshold)
+    return find_recurring_transactions_from_rows(
+        rows,
+        months_threshold=months_threshold,
+        fuzzy=fuzzy,
+        ratio_threshold=ratio_threshold,
+    )
 
 
 if __name__ == "__main__":
@@ -101,7 +136,23 @@ if __name__ == "__main__":
         default=2,
         help="Minimum number of months for a transaction to be considered recurring",
     )
+    parser.add_argument(
+        "--fuzzy",
+        action="store_true",
+        help="Enable fuzzy matching of descriptions using simple AI heuristics",
+    )
+    parser.add_argument(
+        "--ratio-threshold",
+        type=float,
+        default=0.8,
+        help="Similarity required for descriptions to be grouped when --fuzzy is used",
+    )
     args = parser.parse_args()
-    for desc, amt in find_recurring_transactions(args.csv_file, args.months):
+    for desc, amt in find_recurring_transactions(
+        args.csv_file,
+        args.months,
+        fuzzy=args.fuzzy,
+        ratio_threshold=args.ratio_threshold,
+    ):
         print(f"{desc}: ${amt:.2f}")
 

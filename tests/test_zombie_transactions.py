@@ -61,6 +61,24 @@ bad-date,ServiceX,9.99
             results = find_recurring_transactions(path, months_threshold=2)
             self.assertIn(("ServiceA", 10.0), results)
 
+    def test_fuzzy_matching(self):
+        fuzzy_csv = """Date,Description,Amount
+2024-01-01,Service A,10.00
+2024-02-01,service-a,10.00
+2024-03-01,SERVICE A,10.00
+"""
+        with io.StringIO(fuzzy_csv) as f:
+            import tempfile
+
+            with tempfile.NamedTemporaryFile(mode="w+", delete=False) as tf:
+                tf.write(f.getvalue())
+                path = tf.name
+
+            results = find_recurring_transactions(path, months_threshold=2, fuzzy=True)
+            self.assertEqual(len(results), 1)
+            desc, amt = results[0]
+            self.assertAlmostEqual(amt, 10.0)
+
 
 if __name__ == "__main__":
     unittest.main()
