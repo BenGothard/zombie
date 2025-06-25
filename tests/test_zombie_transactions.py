@@ -50,6 +50,17 @@ bad-date,ServiceX,9.99
             results = find_recurring_transactions(path, months_threshold=2)
             self.assertIn(("ServiceX", 9.99), results)
 
+    def test_txt_input(self):
+        with io.StringIO(SAMPLE_CSV) as f:
+            import tempfile
+
+            with tempfile.NamedTemporaryFile(mode="w+", suffix=".txt", delete=False) as tf:
+                tf.write(f.getvalue())
+                path = tf.name
+
+            results = find_recurring_transactions(path, months_threshold=2)
+            self.assertIn(("ServiceA", 10.0), results)
+
 
 if __name__ == "__main__":
     unittest.main()

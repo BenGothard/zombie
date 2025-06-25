@@ -54,9 +54,9 @@ button {
 </style>
 </head>
 <body>
-<h1>Upload CSV or PDF</h1>
+<h1>Upload Transaction File</h1>
 <form method="post" enctype="multipart/form-data">
-<input type="file" name="csv_file" accept=".csv,.pdf" multiple><br>
+<input type="file" name="csv_file" accept=".csv,.txt,.pdf,.png,.jpg,.jpeg" multiple><br>
 <button type="submit">Analyze</button>
 </form>
 <pre>{output}</pre>
@@ -89,7 +89,8 @@ class UploadHandler(http.server.BaseHTTPRequestHandler):
             data = item.file.read()
             filename = item.filename or ""
             ext = os.path.splitext(filename)[1].lower()
-            mode = "wb" if ext == ".pdf" else "w+"
+            binary_exts = (".pdf", ".png", ".jpg", ".jpeg")
+            mode = "wb" if ext in binary_exts else "w+"
             with tempfile.NamedTemporaryFile(mode=mode, delete=False) as tf:
                 if mode == "wb":
                     tf.write(data)

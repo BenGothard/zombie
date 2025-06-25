@@ -19,8 +19,9 @@ def _get_month(date_str: str) -> str | None:
 
 
 def _load_rows(file_path: str):
-    """Return a list of CSV dict rows from a CSV or PDF file."""
-    if file_path.lower().endswith(".pdf"):
+    """Return a list of CSV dict rows from supported files."""
+    lower = file_path.lower()
+    if lower.endswith(".pdf"):
         try:
             from PyPDF2 import PdfReader
         except ImportError as e:
@@ -32,6 +33,18 @@ def _load_rows(file_path: str):
             page_text = page.extract_text()
             if page_text:
                 text += page_text + "\n"
+        csv_io = io.StringIO(text)
+        return list(csv.DictReader(csv_io))
+    elif lower.endswith(('.png', '.jpg', '.jpeg')):
+        try:
+            from PIL import Image
+            import pytesseract
+        except ImportError as e:
+            raise RuntimeError(
+                "Image support requires Pillow and pytesseract packages"
+            ) from e
+
+        text = pytesseract.image_to_string(Image.open(file_path))
         csv_io = io.StringIO(text)
         return list(csv.DictReader(csv_io))
     else:
@@ -78,7 +91,9 @@ if __name__ == "__main__":
     parser = argparse.ArgumentParser(
         description="Find recurring transactions across multiple months"
     )
-    parser.add_argument("csv_file", help="CSV file of credit card transactions")
+    parser.add_argument(
+        "csv_file", help="Transactions file (CSV, text, PDF or image)"
+    )
     parser.add_argument(
         "-n",
         "--months",
