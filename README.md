@@ -20,6 +20,8 @@ A basic web interface is available under `docs/`. GitHub Pages can serve this di
 2. In your repository settings on GitHub, enable **GitHub Pages** and choose the **docs/** folder as the source.
 3. Visit the provided URL to upload a CSV file and see recurring charges without installing anything locally.
 
+The page now supports dark mode automatically and features an improved layout for an epic experience.
+
 
 ## Local upload server
 If you prefer a minimal server-based approach, run `upload_server.py`:

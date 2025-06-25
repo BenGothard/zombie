@@ -6,9 +6,41 @@
 <title>Zombie Transactions Analyzer</title>
 <script src="https://cdnjs.cloudflare.com/ajax/libs/PapaParse/5.3.2/papaparse.min.js" integrity="sha512-4VafBf+GO6zkRgZNpmjDoE7YQDdyCjTiMQuuLHfoalGoVYLRNvKcJsteVEhDWUpAJZciV06P88GJEpXHIFaY5w==" crossorigin="anonymous" referrerpolicy="no-referrer"></script>
 <style>
-body { font-family: Arial, sans-serif; margin: 2em; }
-label { display: block; margin-top: 1em; }
-pre { background: #f4f4f4; padding: 1em; }
+:root {
+  --bg: #fff;
+  --fg: #000;
+  --pre-bg: #f4f4f4;
+  color-scheme: light dark;
+}
+@media (prefers-color-scheme: dark) {
+  :root {
+    --bg: #121212;
+    --fg: #eee;
+    --pre-bg: #1e1e1e;
+  }
+}
+body {
+  font-family: Arial, sans-serif;
+  margin: 2em;
+  background: var(--bg);
+  color: var(--fg);
+}
+label {
+  display: block;
+  margin-top: 1em;
+}
+pre {
+  background: var(--pre-bg);
+  padding: 1em;
+}
+button {
+  padding: 0.5em 1em;
+  font-size: 1em;
+}
+h1 {
+  font-size: 2em;
+  text-shadow: 0 0 5px #888;
+}
 </style>
 </head>
 <body>
