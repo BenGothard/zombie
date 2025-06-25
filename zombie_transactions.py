@@ -1,7 +1,7 @@
 import csv
 from collections import defaultdict
 from datetime import datetime
-from typing import List, Tuple, Dict
+from typing import List, Tuple, Dict, Iterable
 import io
 
 
@@ -39,12 +39,12 @@ def _load_rows(file_path: str):
             return list(csv.DictReader(f))
 
 
-def find_recurring_transactions(
-    file_path: str, months_threshold: int = 2
+def find_recurring_transactions_from_rows(
+    rows: Iterable[dict], months_threshold: int = 2
 ) -> List[Tuple[str, float]]:
-    """Return a list of (description, amount) that appear in multiple months."""
+    """Return recurring (description, amount) pairs from an iterable of rows."""
     seen: Dict[Tuple[str, float], set] = defaultdict(set)
-    for row in _load_rows(file_path):
+    for row in rows:
         description = (row.get("Description") or row.get("Payee") or "").strip()
         amount_str = row.get("Amount")
         date_str = row.get("Date") or row.get("Transaction Date") or ""
@@ -62,6 +62,14 @@ def find_recurring_transactions(
     return [
         (desc, amt) for (desc, amt), months in seen.items() if len(months) >= months_threshold
     ]
+
+
+def find_recurring_transactions(
+    file_path: str, months_threshold: int = 2
+) -> List[Tuple[str, float]]:
+    """Return a list of (description, amount) that appear in multiple months."""
+    rows = _load_rows(file_path)
+    return find_recurring_transactions_from_rows(rows, months_threshold)
 
 
 if __name__ == "__main__":
