@@ -64,6 +64,8 @@ h1 {
   Files:
   <input type="file" id="csvFile" accept=".csv,.txt,.pdf,.png,.jpg,.jpeg" multiple>
 </label>
+<label><input type="checkbox" id="fuzzy"> Fuzzy matching</label>
+<label>Ratio: <input type="number" id="ratio" min="0" max="1" step="0.05" value="0.8"></label>
 <button id="analyzeBtn">Analyze</button>
 <pre id="output"></pre>
 <pre id="log"></pre>
@@ -88,7 +90,28 @@ function getMonth(dateStr) {
   return `${y}-${m}`;
 }
 
-function findRecurringTransactions(rows, monthsThreshold) {
+function editDistance(a, b) {
+  a = a.toLowerCase();
+  b = b.toLowerCase();
+  const dp = Array.from({length: a.length + 1}, () => new Array(b.length + 1).fill(0));
+  for (let i = 0; i <= a.length; i++) dp[i][0] = i;
+  for (let j = 0; j <= b.length; j++) dp[0][j] = j;
+  for (let i = 1; i <= a.length; i++) {
+    for (let j = 1; j <= b.length; j++) {
+      if (a[i-1] === b[j-1]) dp[i][j] = dp[i-1][j-1];
+      else dp[i][j] = Math.min(dp[i-1][j-1], dp[i-1][j], dp[i][j-1]) + 1;
+    }
+  }
+  return dp[a.length][b.length];
+}
+
+function similarity(a, b) {
+  const dist = editDistance(a, b);
+  const len = Math.max(a.length, b.length);
+  return len === 0 ? 1 : (len - dist) / len;
+}
+
+function findRecurringTransactions(rows, monthsThreshold, fuzzy=false, ratioThreshold=0.8) {
   const seen = {};
   rows.forEach(row => {
     const desc = (row.Description || row.Payee || '').trim();
@@ -97,7 +120,15 @@ function findRecurringTransactions(rows, monthsThreshold) {
     if (!desc || isNaN(amount) || !dateStr) return;
     let month;
     try { month = getMonth(dateStr); } catch (e) { return; }
-    const key = desc + '||' + amount;
+    let key = desc + '||' + amount;
+    if (fuzzy) {
+      Object.keys(seen).forEach(k => {
+        const [d, aVal] = k.split('||');
+        if (parseFloat(aVal) === amount && similarity(d, desc) >= ratioThreshold) {
+          key = k;
+        }
+      });
+    }
     if (!seen[key]) seen[key] = new Set();
     seen[key].add(month);
   });
@@ -230,7 +261,9 @@ async function analyze() {
     const rows = rowsArrays.flat();
     const threshold = guessThreshold(rows);
     log('Using threshold of ' + threshold + ' month(s)');
-    const recurring = findRecurringTransactions(rows, threshold);
+    const fuzzy = document.getElementById('fuzzy').checked;
+    const ratio = parseFloat(document.getElementById('ratio').value) || 0.8;
+    const recurring = findRecurringTransactions(rows, threshold, fuzzy, ratio);
     log('Found ' + recurring.length + ' recurring transaction(s)');
     if (recurring.length === 0) {
       output.textContent = 'No recurring transactions found.';

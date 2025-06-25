@@ -100,7 +100,9 @@ class UploadHandler(http.server.BaseHTTPRequestHandler):
             rows.extend(_load_rows(path))
         if rows:
             threshold = self._guess_threshold_rows(rows)
-            results = find_recurring_transactions_from_rows(rows, months_threshold=threshold)
+            results = find_recurring_transactions_from_rows(
+                rows, months_threshold=threshold, fuzzy=True
+            )
             if results:
                 output = "\n".join(f"{d}: ${a:.2f}" for d, a in results)
             else:
