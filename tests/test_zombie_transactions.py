@@ -1,5 +1,9 @@
 import io
 import unittest
+import os
+import sys
+
+sys.path.append(os.path.dirname(os.path.dirname(__file__)))
 from zombie_transactions import find_recurring_transactions
 
 
