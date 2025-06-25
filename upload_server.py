@@ -2,7 +2,11 @@ import http.server
 import cgi
 import tempfile
 import os
-from zombie_transactions import find_recurring_transactions
+from zombie_transactions import (
+    find_recurring_transactions,
+    _load_rows,
+    _get_month,
+)
 
 FORM = """<!doctype html>
 <html>
@@ -24,17 +28,27 @@ FORM = """<!doctype html>
 }
 body {
   font-family: Arial, sans-serif;
-  margin: 2em;
+  margin: 0;
+  min-height: 100vh;
   background: var(--bg);
   color: var(--fg);
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  text-align: center;
+  gap: 1em;
 }
 pre {
   background: var(--pre-bg);
   padding: 1em;
 }
 button {
-  padding: 0.5em 1em;
+  padding: 0.5em 1.5em;
   font-size: 1em;
+  border: none;
+  border-radius: 4px;
+  cursor: pointer;
 }
 </style>
 </head>
@@ -42,7 +56,6 @@ button {
 <h1>Upload CSV or PDF</h1>
 <form method="post" enctype="multipart/form-data">
 <input type="file" name="csv_file" accept=".csv,.pdf"><br>
-Months threshold: <input type="number" name="months" value="2" min="1"><br>
 <button type="submit">Analyze</button>
 </form>
 <pre>{output}</pre>
@@ -65,7 +78,6 @@ class UploadHandler(http.server.BaseHTTPRequestHandler):
         pdict["CONTENT-LENGTH"] = int(self.headers.get("content-length", 0))
         form = cgi.FieldStorage(fp=self.rfile, headers=self.headers, environ={"REQUEST_METHOD": "POST"}, keep_blank_values=True)
         fileitem = form["csv_file"] if "csv_file" in form else None
-        months = int(form.getfirst("months", "2"))
         output = "No file uploaded"
         if fileitem is not None and fileitem.file:
             data = fileitem.file.read()
@@ -78,7 +90,8 @@ class UploadHandler(http.server.BaseHTTPRequestHandler):
                 else:
                     tf.write(data.decode())
                 path = tf.name
-            results = find_recurring_transactions(path, months_threshold=months)
+            threshold = self._guess_threshold(path)
+            results = find_recurring_transactions(path, months_threshold=threshold)
             if results:
                 output = "\n".join(f"{d}: ${a:.2f}" for d, a in results)
             else:
@@ -87,6 +100,15 @@ class UploadHandler(http.server.BaseHTTPRequestHandler):
         self.send_header("Content-Type", "text/html")
         self.end_headers()
         self.wfile.write(FORM.format(output=output).encode())
+
+    def _guess_threshold(self, path: str) -> int:
+        rows = _load_rows(path)
+        months = set()
+        for row in rows:
+            month = _get_month(row.get("Date") or row.get("Transaction Date") or "")
+            if month:
+                months.add(month)
+        return max(2, (len(months) + 1) // 2)
 
 def run(server_class=http.server.HTTPServer, handler_class=UploadHandler, port=8000):
     server_address = ("", port)
