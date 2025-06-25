@@ -46,8 +46,8 @@ h1 {
 <body>
 <h1>Zombie Transactions Analyzer</h1>
 <label>
-CSV File:
-<input type="file" id="csvFile" accept=".csv">
+CSV/PDF File:
+<input type="file" id="csvFile" accept=".csv,.pdf">
 </label>
 <label>
 Months threshold:
@@ -92,7 +92,11 @@ function analyze() {
   const months = parseInt(document.getElementById('months').value, 10) || 2;
   const output = document.getElementById('output');
   const file = fileInput.files[0];
-  if (!file) { output.textContent = 'Please select a CSV file.'; return; }
+  if (!file) { output.textContent = 'Please select a CSV or PDF file.'; return; }
+  if (file.name.toLowerCase().endsWith('.pdf')) {
+    output.textContent = 'PDF files are not supported in this demo. Please use the Python script.';
+    return;
+  }
   Papa.parse(file, {
     header: true,
     skipEmptyLines: true,

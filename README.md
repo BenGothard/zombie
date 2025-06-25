@@ -9,6 +9,12 @@ Prepare a CSV file with at least `Date`, `Description` and `Amount` columns. Run
 python zombie_transactions.py transactions.csv -n 3
 ```
 
+PDF statements can also be analyzed if the optional `PyPDF2` dependency is installed:
+
+```bash
+python zombie_transactions.py statement.pdf -n 3
+```
+
 The `-n`/`--months` option controls how many distinct months a charge must appear in to be reported.
 
 Rows with missing or malformed data are ignored so you can analyze statements that contain occasional inconsistencies without errors.
@@ -30,4 +36,4 @@ If you prefer a minimal server-based approach, run `upload_server.py`:
 python upload_server.py
 ```
 
-Open [http://localhost:8000](http://localhost:8000) in your browser to upload a CSV file and view recurring transactions.
+Open [http://localhost:8000](http://localhost:8000) in your browser to upload a CSV or PDF file and view recurring transactions. PDF parsing requires the optional `PyPDF2` package.
