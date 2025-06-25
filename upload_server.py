@@ -1,6 +1,7 @@
 import http.server
 import cgi
 import tempfile
+import os
 from zombie_transactions import find_recurring_transactions
 
 FORM = """<!doctype html>
@@ -38,9 +39,9 @@ button {
 </style>
 </head>
 <body>
-<h1>Upload CSV</h1>
+<h1>Upload CSV or PDF</h1>
 <form method="post" enctype="multipart/form-data">
-<input type="file" name="csv_file" accept=".csv"><br>
+<input type="file" name="csv_file" accept=".csv,.pdf"><br>
 Months threshold: <input type="number" name="months" value="2" min="1"><br>
 <button type="submit">Analyze</button>
 </form>
@@ -67,9 +68,15 @@ class UploadHandler(http.server.BaseHTTPRequestHandler):
         months = int(form.getfirst("months", "2"))
         output = "No file uploaded"
         if fileitem is not None and fileitem.file:
-            data = fileitem.file.read().decode()
-            with tempfile.NamedTemporaryFile(mode="w+", delete=False) as tf:
-                tf.write(data)
+            data = fileitem.file.read()
+            filename = fileitem.filename or ""
+            ext = os.path.splitext(filename)[1].lower()
+            mode = "wb" if ext == ".pdf" else "w+"
+            with tempfile.NamedTemporaryFile(mode=mode, delete=False) as tf:
+                if mode == "wb":
+                    tf.write(data)
+                else:
+                    tf.write(data.decode())
                 path = tf.name
             results = find_recurring_transactions(path, months_threshold=months)
             if results:
