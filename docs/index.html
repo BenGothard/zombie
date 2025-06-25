@@ -4,8 +4,7 @@
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
 <title>Zombie Transactions Analyzer</title>
-<script src="https://cdnjs.cloudflare.com/ajax/libs/PapaParse/5.3.2/papaparse.min.js" integrity="sha512-4VafBf+GO6zkRgZNpmjDoE7YQDdyCjTiMQuuLHfoalGoVYLRNvKcJsteVEhDWUpAJZciV06P88GJEpXHIFaY5w==" crossorigin="anonymous" referrerpolicy="no-referrer"></script>
-<script src="https://cdnjs.cloudflare.com/ajax/libs/pdf.js/3.7.107/pdf.min.js" integrity="sha512-k6VKgf/mBlC9ZwTe74MkRUYw35vj0IadB1iKsFcfoTmyaKOA1NVuMcZV8K4D4ew3Efr2E1VlzDq+W8sELpAoKA==" crossorigin="anonymous" referrerpolicy="no-referrer"></script>
+<!-- All functionality is bundled below to work fully offline -->
 <style>
 :root {
   --bg: #fff;
@@ -114,34 +113,31 @@ function guessThreshold(rows) {
   return Math.max(2, Math.ceil(months.size / 2));
 }
 
-// Configure PDF.js worker if the library loaded correctly. If the script
-// failed to load (e.g. due to being offline) we handle it later when a PDF is
-// actually parsed.
-if (window.pdfjsLib) {
-  pdfjsLib.GlobalWorkerOptions.workerSrc =
-    'https://cdnjs.cloudflare.com/ajax/libs/pdf.js/3.7.107/pdf.worker.min.js';
-}
-
 function parsePdf(file) {
-  if (!window.pdfjsLib) {
-    return Promise.reject(new Error('PDF.js library not loaded'));
-  }
-  log('Parsing PDF: ' + file.name);
+  log('Parsing PDF (simple parser): ' + file.name);
   return new Promise((resolve, reject) => {
     const reader = new FileReader();
-    reader.onload = async e => {
+    reader.onload = e => {
       try {
-        const typed = new Uint8Array(e.target.result);
-        const pdf = await pdfjsLib.getDocument({ data: typed }).promise;
-        let text = '';
-        for (let i = 1; i <= pdf.numPages; i++) {
-          const page = await pdf.getPage(i);
-          const content = await page.getTextContent();
-          text += content.items.map(it => it.str).join(' ') + '\n';
+        const text = new TextDecoder().decode(new Uint8Array(e.target.result));
+        const parts = [];
+        const tj = /\(([^)]*)\)\s*Tj/g;
+        let m;
+        while ((m = tj.exec(text)) !== null) parts.push(m[1]);
+        const tj2 = /\[([^\]]*)\]\s*TJ/g;
+        while ((m = tj2.exec(text)) !== null) {
+          const joined = m[1]
+            .split(/\)\s*\(/)
+            .map(s => s.replace(/^\(/, '').replace(/\)$/, ''))
+            .join('');
+          parts.push(joined);
         }
-        log('Parsed ' + pdf.numPages + ' pages from ' + file.name);
-        resolve(text);
-      } catch (err) { log('Error parsing PDF: ' + err.message); reject(err); }
+        if (parts.length === 0) {
+          reject(new Error('Unable to extract text from PDF'));
+          return;
+        }
+        resolve(parts.join('\n'));
+      } catch (err) { reject(err); }
     };
     reader.onerror = reject;
     reader.readAsArrayBuffer(file);
@@ -210,14 +206,8 @@ async function analyze() {
       output.textContent = recurring.map(r => `${r.description}: $${r.amount.toFixed(2)}`).join('\n');
     }
   } catch (err) {
-    if (err && err.message && err.message.includes('PDF.js library not loaded')) {
-      const msg = 'PDF.js failed to load. Connect to the internet or run "python upload_server.py" for offline PDF support.';
-      output.textContent = msg;
-      log('Error: ' + msg);
-    } else {
-      output.textContent = 'Error processing files: ' + err.message;
-      log('Error: ' + err.message);
-    }
+    output.textContent = 'Error processing files: ' + err.message;
+    log('Error: ' + err.message);
   }
 }
 
