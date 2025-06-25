@@ -5,13 +5,44 @@ from zombie_transactions import find_recurring_transactions
 
 FORM = """<!doctype html>
 <html>
-<head><title>Zombie Transactions Uploader</title></head>
+<head>
+<title>Zombie Transactions Uploader</title>
+<style>
+:root {
+  --bg: #fff;
+  --fg: #000;
+  --pre-bg: #f4f4f4;
+  color-scheme: light dark;
+}
+@media (prefers-color-scheme: dark) {
+  :root {
+    --bg: #121212;
+    --fg: #eee;
+    --pre-bg: #1e1e1e;
+  }
+}
+body {
+  font-family: Arial, sans-serif;
+  margin: 2em;
+  background: var(--bg);
+  color: var(--fg);
+}
+pre {
+  background: var(--pre-bg);
+  padding: 1em;
+}
+button {
+  padding: 0.5em 1em;
+  font-size: 1em;
+}
+</style>
+</head>
 <body>
 <h1>Upload CSV</h1>
 <form method="post" enctype="multipart/form-data">
 <input type="file" name="csv_file" accept=".csv"><br>
 Months threshold: <input type="number" name="months" value="2" min="1"><br>
-<input type="submit" value="Analyze">
+<button type="submit">Analyze</button>
 </form>
 <pre>{output}</pre>
 </body>
