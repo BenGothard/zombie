@@ -41,6 +41,11 @@ pre {
   background: var(--pre-bg);
   padding: 1em;
 }
+#log {
+  max-height: 200px;
+  overflow-y: auto;
+  text-align: left;
+}
 button {
   padding: 0.5em 1.5em;
   font-size: 1em;
@@ -62,7 +67,13 @@ h1 {
 </label>
 <button id="analyzeBtn">Analyze</button>
 <pre id="output"></pre>
+<pre id="log"></pre>
 <script>
+function log(msg) {
+  const el = document.getElementById('log');
+  el.textContent += msg + '\n';
+  el.scrollTop = el.scrollHeight;
+}
 function getMonth(dateStr) {
   const d = new Date(dateStr);
   if (isNaN(d)) throw new Error('Unrecognized date format: ' + dateStr);
@@ -106,6 +117,7 @@ function guessThreshold(rows) {
 pdfjsLib.GlobalWorkerOptions.workerSrc = 'https://cdnjs.cloudflare.com/ajax/libs/pdf.js/3.7.107/pdf.worker.min.js';
 
 function parsePdf(file) {
+  log('Parsing PDF: ' + file.name);
   return new Promise((resolve, reject) => {
     const reader = new FileReader();
     reader.onload = async e => {
@@ -118,8 +130,9 @@ function parsePdf(file) {
           const content = await page.getTextContent();
           text += content.items.map(it => it.str).join(' ') + '\n';
         }
+        log('Parsed ' + pdf.numPages + ' pages from ' + file.name);
         resolve(text);
-      } catch (err) { reject(err); }
+      } catch (err) { log('Error parsing PDF: ' + err.message); reject(err); }
     };
     reader.onerror = reject;
     reader.readAsArrayBuffer(file);
@@ -127,14 +140,19 @@ function parsePdf(file) {
 }
 
 function parseFile(file) {
+  log('Reading ' + file.name);
   if (file.name.toLowerCase().endsWith('.pdf')) {
-    return parsePdf(file).then(text => Papa.parse(text, {header: true, skipEmptyLines: true}).data);
+    return parsePdf(file).then(text => {
+      const rows = Papa.parse(text, {header: true, skipEmptyLines: true}).data;
+      log('Parsed ' + rows.length + ' rows from ' + file.name);
+      return rows;
+    });
   }
   return new Promise((resolve, reject) => {
     Papa.parse(file, {
       header: true,
       skipEmptyLines: true,
-      complete: results => resolve(results.data),
+      complete: results => { log('Parsed ' + results.data.length + ' rows from ' + file.name); resolve(results.data); },
       error: reject
     });
   });
@@ -145,11 +163,15 @@ async function analyze() {
   const output = document.getElementById('output');
   const files = Array.from(fileInput.files || []);
   if (files.length === 0) { output.textContent = 'Please select at least one CSV or PDF file.'; return; }
+  document.getElementById('log').textContent = '';
+  log('Analyzing ' + files.length + ' file(s)');
   try {
     const rowsArrays = await Promise.all(files.map(parseFile));
     const rows = rowsArrays.flat();
     const threshold = guessThreshold(rows);
+    log('Using threshold of ' + threshold + ' month(s)');
     const recurring = findRecurringTransactions(rows, threshold);
+    log('Found ' + recurring.length + ' recurring transaction(s)');
     if (recurring.length === 0) {
       output.textContent = 'No recurring transactions found.';
     } else {
@@ -157,6 +179,7 @@ async function analyze() {
     }
   } catch (err) {
     output.textContent = 'Error processing files: ' + err.message;
+    log('Error: ' + err.message);
   }
 }
 
