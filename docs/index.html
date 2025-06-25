@@ -1,0 +1,81 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Zombie Transactions Analyzer</title>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/PapaParse/5.3.2/papaparse.min.js" integrity="sha512-4VafBf+GO6zkRgZNpmjDoE7YQDdyCjTiMQuuLHfoalGoVYLRNvKcJsteVEhDWUpAJZciV06P88GJEpXHIFaY5w==" crossorigin="anonymous" referrerpolicy="no-referrer"></script>
+<style>
+body { font-family: Arial, sans-serif; margin: 2em; }
+label { display: block; margin-top: 1em; }
+pre { background: #f4f4f4; padding: 1em; }
+</style>
+</head>
+<body>
+<h1>Zombie Transactions Analyzer</h1>
+<label>
+CSV File:
+<input type="file" id="csvFile" accept=".csv">
+</label>
+<label>
+Months threshold:
+<input type="number" id="months" value="2" min="1">
+</label>
+<button id="analyzeBtn">Analyze</button>
+<pre id="output"></pre>
+<script>
+function getMonth(dateStr) {
+  const d = new Date(dateStr);
+  if (isNaN(d)) throw new Error('Unrecognized date format: ' + dateStr);
+  const y = d.getFullYear();
+  const m = String(d.getMonth() + 1).padStart(2, '0');
+  return `${y}-${m}`;
+}
+
+function findRecurringTransactions(rows, monthsThreshold) {
+  const seen = {};
+  rows.forEach(row => {
+    const desc = (row.Description || row.Payee || '').trim();
+    const amount = parseFloat(row.Amount);
+    const dateStr = row.Date || row['Transaction Date'] || '';
+    if (!desc || isNaN(amount) || !dateStr) return;
+    let month;
+    try { month = getMonth(dateStr); } catch (e) { return; }
+    const key = desc + '||' + amount;
+    if (!seen[key]) seen[key] = new Set();
+    seen[key].add(month);
+  });
+  const results = [];
+  Object.keys(seen).forEach(key => {
+    if (seen[key].size >= monthsThreshold) {
+      const [desc, amount] = key.split('||');
+      results.push({ description: desc, amount: parseFloat(amount) });
+    }
+  });
+  return results;
+}
+
+function analyze() {
+  const fileInput = document.getElementById('csvFile');
+  const months = parseInt(document.getElementById('months').value, 10) || 2;
+  const output = document.getElementById('output');
+  const file = fileInput.files[0];
+  if (!file) { output.textContent = 'Please select a CSV file.'; return; }
+  Papa.parse(file, {
+    header: true,
+    skipEmptyLines: true,
+    complete: function(results) {
+      const recurring = findRecurringTransactions(results.data, months);
+      if (recurring.length === 0) {
+        output.textContent = 'No recurring transactions found.';
+      } else {
+        output.textContent = recurring.map(r => `${r.description}: $${r.amount.toFixed(2)}`).join('\n');
+      }
+    }
+  });
+}
+
+document.getElementById('analyzeBtn').addEventListener('click', analyze);
+</script>
+</body>
+</html>

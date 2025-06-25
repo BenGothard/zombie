@@ -11,3 +11,10 @@ python zombie_transactions.py transactions.csv -n 3
 
 The `-n`/`--months` option controls how many distinct months a charge must appear in to be reported.
 
+## Web interface
+A basic web interface is available under `docs/`. GitHub Pages can serve this directory so the analysis can be run directly in the browser:
+
+1. Commit the contents of the `docs/` folder.
+2. In your repository settings on GitHub, enable **GitHub Pages** and choose the **docs/** folder as the source.
+3. Visit the provided URL to upload a CSV file and see recurring charges without installing anything locally.
+
