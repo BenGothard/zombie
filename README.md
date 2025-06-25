@@ -26,6 +26,11 @@ A basic web interface is available under `docs/`. GitHub Pages can serve this di
 2. In your repository settings on GitHub, enable **GitHub Pages** and choose the **docs/** folder as the source.
 3. Visit the provided URL to upload a CSV file and see recurring charges without installing anything locally.
 
+If you open the page directly from the filesystem (without GitHub Pages) the
+PDF.js library might not load if you're offline. In that case run
+`python upload_server.py` and use the local server, or provide a local copy of
+`pdf.min.js` and `pdf.worker.min.js` in the `docs/` folder.
+
 The page now supports dark mode automatically and features an improved layout for an epic experience.
 
 
