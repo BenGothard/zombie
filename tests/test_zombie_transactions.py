@@ -32,6 +32,24 @@ class ZombieTest(unittest.TestCase):
             self.assertIn(("ServiceC", 7.0), results)
             self.assertNotIn(("ServiceB", 5.0), results)
 
+    def test_ignore_invalid_rows(self):
+        invalid_csv = """Date,Description,Amount
+2024-01-01,ServiceX,9.99
+bad-date,ServiceX,9.99
+2024-02-01,ServiceX,9.99
+2024-03-01,,10
+2024-03-05,ServiceX,notanumber
+"""
+        with io.StringIO(invalid_csv) as f:
+            import tempfile
+
+            with tempfile.NamedTemporaryFile(mode="w+", delete=False) as tf:
+                tf.write(f.getvalue())
+                path = tf.name
+
+            results = find_recurring_transactions(path, months_threshold=2)
+            self.assertIn(("ServiceX", 9.99), results)
+
 
 if __name__ == "__main__":
     unittest.main()
