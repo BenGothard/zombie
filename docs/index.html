@@ -114,9 +114,18 @@ function guessThreshold(rows) {
   return Math.max(2, Math.ceil(months.size / 2));
 }
 
-pdfjsLib.GlobalWorkerOptions.workerSrc = 'https://cdnjs.cloudflare.com/ajax/libs/pdf.js/3.7.107/pdf.worker.min.js';
+// Configure PDF.js worker if the library loaded correctly. If the script
+// failed to load (e.g. due to being offline) we handle it later when a PDF is
+// actually parsed.
+if (window.pdfjsLib) {
+  pdfjsLib.GlobalWorkerOptions.workerSrc =
+    'https://cdnjs.cloudflare.com/ajax/libs/pdf.js/3.7.107/pdf.worker.min.js';
+}
 
 function parsePdf(file) {
+  if (!window.pdfjsLib) {
+    return Promise.reject(new Error('PDF.js library not loaded'));
+  }
   log('Parsing PDF: ' + file.name);
   return new Promise((resolve, reject) => {
     const reader = new FileReader();
@@ -141,6 +150,9 @@ function parsePdf(file) {
 
 function parseFile(file) {
   log('Reading ' + file.name);
+  if (!window.Papa) {
+    return Promise.reject(new Error('PapaParse library not loaded'));
+  }
   if (file.name.toLowerCase().endsWith('.pdf')) {
     return parsePdf(file).then(text => {
       const rows = Papa.parse(text, {header: true, skipEmptyLines: true}).data;
