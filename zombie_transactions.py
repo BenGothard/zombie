@@ -4,15 +4,17 @@ from datetime import datetime
 from typing import List, Tuple, Dict
 
 
-def _get_month(date_str: str) -> str:
-    """Return YYYY-MM for a date string."""
+def _get_month(date_str: str) -> str | None:
+    """Return YYYY-MM for a date string or ``None`` if parsing fails."""
+    if not date_str:
+        return None
     for fmt in ("%Y-%m-%d", "%m/%d/%Y", "%Y/%m/%d"):
         try:
             dt = datetime.strptime(date_str, fmt)
             return dt.strftime("%Y-%m")
         except ValueError:
             continue
-    raise ValueError(f"Unrecognized date format: {date_str}")
+    return None
 
 
 def find_recurring_transactions(
@@ -23,11 +25,20 @@ def find_recurring_transactions(
     with open(file_path, newline="") as f:
         reader = csv.DictReader(f)
         for row in reader:
-            description = row.get("Description") or row.get("Payee") or ""
-            amount = float(row.get("Amount"))
+            description = (row.get("Description") or row.get("Payee") or "").strip()
+            amount_str = row.get("Amount")
             date_str = row.get("Date") or row.get("Transaction Date") or ""
+
+            try:
+                amount = float(amount_str)
+            except (TypeError, ValueError):
+                continue
+
             month = _get_month(date_str)
-            seen[(description.strip(), amount)].add(month)
+            if not description or month is None:
+                continue
+
+            seen[(description, amount)].add(month)
     return [
         (desc, amt) for (desc, amt), months in seen.items() if len(months) >= months_threshold
     ]

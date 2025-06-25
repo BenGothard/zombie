@@ -11,6 +11,8 @@ python zombie_transactions.py transactions.csv -n 3
 
 The `-n`/`--months` option controls how many distinct months a charge must appear in to be reported.
 
+Rows with missing or malformed data are ignored so you can analyze statements that contain occasional inconsistencies without errors.
+
 ## Web interface
 A basic web interface is available under `docs/`. GitHub Pages can serve this directory so the analysis can be run directly in the browser:
 
