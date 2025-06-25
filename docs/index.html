@@ -5,6 +5,7 @@
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
 <title>Zombie Transactions Analyzer</title>
 <script src="https://cdnjs.cloudflare.com/ajax/libs/PapaParse/5.3.2/papaparse.min.js" integrity="sha512-4VafBf+GO6zkRgZNpmjDoE7YQDdyCjTiMQuuLHfoalGoVYLRNvKcJsteVEhDWUpAJZciV06P88GJEpXHIFaY5w==" crossorigin="anonymous" referrerpolicy="no-referrer"></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/pdf.js/3.7.107/pdf.min.js" integrity="sha512-k6VKgf/mBlC9ZwTe74MkRUYw35vj0IadB1iKsFcfoTmyaKOA1NVuMcZV8K4D4ew3Efr2E1VlzDq+W8sELpAoKA==" crossorigin="anonymous" referrerpolicy="no-referrer"></script>
 <style>
 :root {
   --bg: #fff;
@@ -56,8 +57,8 @@ h1 {
 <body>
 <h1>Zombie Transactions Analyzer</h1>
 <label>
-  CSV/PDF File:
-  <input type="file" id="csvFile" accept=".csv,.pdf">
+  CSV/PDF Files:
+  <input type="file" id="csvFile" accept=".csv,.pdf" multiple>
 </label>
 <button id="analyzeBtn">Analyze</button>
 <pre id="output"></pre>
@@ -102,28 +103,61 @@ function guessThreshold(rows) {
   return Math.max(2, Math.ceil(months.size / 2));
 }
 
-function analyze() {
+pdfjsLib.GlobalWorkerOptions.workerSrc = 'https://cdnjs.cloudflare.com/ajax/libs/pdf.js/3.7.107/pdf.worker.min.js';
+
+function parsePdf(file) {
+  return new Promise((resolve, reject) => {
+    const reader = new FileReader();
+    reader.onload = async e => {
+      try {
+        const typed = new Uint8Array(e.target.result);
+        const pdf = await pdfjsLib.getDocument({ data: typed }).promise;
+        let text = '';
+        for (let i = 1; i <= pdf.numPages; i++) {
+          const page = await pdf.getPage(i);
+          const content = await page.getTextContent();
+          text += content.items.map(it => it.str).join(' ') + '\n';
+        }
+        resolve(text);
+      } catch (err) { reject(err); }
+    };
+    reader.onerror = reject;
+    reader.readAsArrayBuffer(file);
+  });
+}
+
+function parseFile(file) {
+  if (file.name.toLowerCase().endsWith('.pdf')) {
+    return parsePdf(file).then(text => Papa.parse(text, {header: true, skipEmptyLines: true}).data);
+  }
+  return new Promise((resolve, reject) => {
+    Papa.parse(file, {
+      header: true,
+      skipEmptyLines: true,
+      complete: results => resolve(results.data),
+      error: reject
+    });
+  });
+}
+
+async function analyze() {
   const fileInput = document.getElementById('csvFile');
   const output = document.getElementById('output');
-  const file = fileInput.files[0];
-  if (!file) { output.textContent = 'Please select a CSV or PDF file.'; return; }
-  if (file.name.toLowerCase().endsWith('.pdf')) {
-    output.textContent = 'PDF files are not supported in this demo. Please use the Python script.';
-    return;
-  }
-  Papa.parse(file, {
-    header: true,
-    skipEmptyLines: true,
-    complete: function(results) {
-      const threshold = guessThreshold(results.data);
-      const recurring = findRecurringTransactions(results.data, threshold);
-      if (recurring.length === 0) {
-        output.textContent = 'No recurring transactions found.';
-      } else {
-        output.textContent = recurring.map(r => `${r.description}: $${r.amount.toFixed(2)}`).join('\n');
-      }
+  const files = Array.from(fileInput.files || []);
+  if (files.length === 0) { output.textContent = 'Please select at least one CSV or PDF file.'; return; }
+  try {
+    const rowsArrays = await Promise.all(files.map(parseFile));
+    const rows = rowsArrays.flat();
+    const threshold = guessThreshold(rows);
+    const recurring = findRecurringTransactions(rows, threshold);
+    if (recurring.length === 0) {
+      output.textContent = 'No recurring transactions found.';
+    } else {
+      output.textContent = recurring.map(r => `${r.description}: $${r.amount.toFixed(2)}`).join('\n');
     }
-  });
+  } catch (err) {
+    output.textContent = 'Error processing files: ' + err.message;
+  }
 }
 
 document.getElementById('analyzeBtn').addEventListener('click', analyze);

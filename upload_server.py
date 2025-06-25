@@ -4,6 +4,7 @@ import tempfile
 import os
 from zombie_transactions import (
     find_recurring_transactions,
+    find_recurring_transactions_from_rows,
     _load_rows,
     _get_month,
 )
@@ -55,7 +56,7 @@ button {
 <body>
 <h1>Upload CSV or PDF</h1>
 <form method="post" enctype="multipart/form-data">
-<input type="file" name="csv_file" accept=".csv,.pdf"><br>
+<input type="file" name="csv_file" accept=".csv,.pdf" multiple><br>
 <button type="submit">Analyze</button>
 </form>
 <pre>{output}</pre>
@@ -77,11 +78,16 @@ class UploadHandler(http.server.BaseHTTPRequestHandler):
         pdict["boundary"] = pdict["boundary"].encode()
         pdict["CONTENT-LENGTH"] = int(self.headers.get("content-length", 0))
         form = cgi.FieldStorage(fp=self.rfile, headers=self.headers, environ={"REQUEST_METHOD": "POST"}, keep_blank_values=True)
-        fileitem = form["csv_file"] if "csv_file" in form else None
+        fileitem = form.getlist("csv_file") if "csv_file" in form else []
+        if not isinstance(fileitem, list):
+            fileitem = [fileitem]
         output = "No file uploaded"
-        if fileitem is not None and fileitem.file:
-            data = fileitem.file.read()
-            filename = fileitem.filename or ""
+        rows = []
+        for item in fileitem:
+            if not getattr(item, "file", None):
+                continue
+            data = item.file.read()
+            filename = item.filename or ""
             ext = os.path.splitext(filename)[1].lower()
             mode = "wb" if ext == ".pdf" else "w+"
             with tempfile.NamedTemporaryFile(mode=mode, delete=False) as tf:
@@ -90,8 +96,10 @@ class UploadHandler(http.server.BaseHTTPRequestHandler):
                 else:
                     tf.write(data.decode())
                 path = tf.name
-            threshold = self._guess_threshold(path)
-            results = find_recurring_transactions(path, months_threshold=threshold)
+            rows.extend(_load_rows(path))
+        if rows:
+            threshold = self._guess_threshold_rows(rows)
+            results = find_recurring_transactions_from_rows(rows, months_threshold=threshold)
             if results:
                 output = "\n".join(f"{d}: ${a:.2f}" for d, a in results)
             else:
@@ -103,6 +111,14 @@ class UploadHandler(http.server.BaseHTTPRequestHandler):
 
     def _guess_threshold(self, path: str) -> int:
         rows = _load_rows(path)
+        months = set()
+        for row in rows:
+            month = _get_month(row.get("Date") or row.get("Transaction Date") or "")
+            if month:
+                months.add(month)
+        return max(2, (len(months) + 1) // 2)
+
+    def _guess_threshold_rows(self, rows) -> int:
         months = set()
         for row in rows:
             month = _get_month(row.get("Date") or row.get("Transaction Date") or "")
