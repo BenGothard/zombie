@@ -9,9 +9,10 @@ Prepare a CSV file with at least `Date`, `Description` and `Amount` columns. Run
 python zombie_transactions.py transactions.csv -n 3
 ```
 
-PDF statements can also be analyzed when `PyPDF2` or `pdfminer.six` are available.
-If these libraries cannot extract text, the tool will attempt OCR when `pdf2image`,
-`pytesseract` and `Pillow` are installed.
+PDF statements can also be analyzed when `PyPDF2`, `pdfplumber` or
+`pdfminer.six` are available. If these libraries cannot extract text, the tool
+will attempt OCR when `pdf2image`, `pytesseract` and `Pillow` are installed. OCR
+now runs Tesseract with optimized parameters for better accuracy.
 Text files (`.txt`) and image files containing statement screenshots (`.png`, `.jpg`) are supported when `pytesseract` and `Pillow` are available:
 
 ```bash
@@ -21,8 +22,10 @@ python zombie_transactions.py statement.png -n 3
 
 The `-n`/`--months` option controls how many distinct months a charge must appear in to be reported.
 
-Pass `--fuzzy` to enable AI-powered fuzzy matching of description strings so that
-minor variations like different casing or punctuation are grouped together.
+Pass `--fuzzy` to enable AI-powered fuzzy matching of description strings. When
+the optional [spaCy](https://spacy.io/) library and an English model are
+installed, descriptions are compared using semantic embeddings for much more
+accurate grouping. Without spaCy a simpler text similarity heuristic is used.
 
 Rows with missing or malformed data are ignored so you can analyze statements that contain occasional inconsistencies without errors.
 
@@ -38,9 +41,9 @@ The web interface is now completely self contained. You can open
 analyze CSV files or simple PDF statements. Parsing and grouping of
 descriptions relies on a lightweight AI model that runs entirely in your
 browser so recurring transactions are found even when descriptions vary
-slightly. PDF parsing uses a simple extractor and falls back to AI-powered OCR
-when needed so even scanned statements can be analyzed without relying on
-`pdf.js`.
+slightly. PDF parsing uses a simple extractor and falls back to OCR with
+Tesseract when needed so even scanned statements can be analyzed without
+relying on `pdf.js`.
 
 The page now supports dark mode automatically and features an improved layout for an epic experience.
 
