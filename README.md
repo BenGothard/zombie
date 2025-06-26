@@ -20,8 +20,7 @@ python zombie_transactions.py statement.png -n 3
 The `-n`/`--months` option controls how many distinct months a charge must appear in to be reported.
 
 Pass `--fuzzy` to enable AI-powered fuzzy matching of description strings so that
-minor variations like different casing or punctuation are grouped together. The
-`--ratio-threshold` option controls the required similarity (default 0.8).
+minor variations like different casing or punctuation are grouped together.
 
 Rows with missing or malformed data are ignored so you can analyze statements that contain occasional inconsistencies without errors.
 
