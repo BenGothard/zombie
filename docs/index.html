@@ -64,7 +64,6 @@ h1 {
   Files:
   <input type="file" id="csvFile" accept=".csv,.txt,.pdf,.png,.jpg,.jpeg" multiple>
 </label>
-<label>Ratio: <input type="number" id="ratio" min="0" max="1" step="0.05" value="0.8"></label>
 <button id="analyzeBtn">Analyze</button>
 <pre id="output"></pre>
 <pre id="log"></pre>
@@ -277,7 +276,7 @@ async function analyze() {
     const rows = rowsArrays.flat();
     const threshold = guessThreshold(rows);
     log('Using threshold of ' + threshold + ' month(s)');
-    const ratio = parseFloat(document.getElementById('ratio').value) || 0.8;
+    const ratio = 0.8;
     const recurring = findRecurringTransactions(rows, threshold, ratio);
     log('Found ' + recurring.length + ' recurring transaction(s)');
     if (recurring.length === 0) {
