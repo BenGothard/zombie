@@ -21,6 +21,8 @@ python zombie_transactions.py statement.png -n 3
 ```
 
 The `-n`/`--months` option controls how many distinct months a charge must appear in to be reported.
+Use `-a`/`--auto-threshold` to let the tool pick an appropriate threshold based on
+the range of months present in your statements.
 
 Pass `--fuzzy` to enable AI-powered fuzzy matching of description strings. When
 the optional [spaCy](https://spacy.io/) library and an English model are
