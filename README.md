@@ -36,10 +36,11 @@ A basic web interface is available under `docs/`. GitHub Pages can serve this di
 The web interface is now completely self contained. You can open
 `docs/index.html` directly in your browser without an internet connection and
 analyze CSV files or simple PDF statements. Parsing and grouping of
-descriptions now relies on a lightweight AI model that runs entirely in your
+descriptions relies on a lightweight AI model that runs entirely in your
 browser so recurring transactions are found even when descriptions vary
-slightly. PDF parsing now falls back to client-side OCR when direct extraction
-fails so even scanned statements can be analyzed.
+slightly. PDF parsing uses a simple extractor and falls back to AI-powered OCR
+when needed so even scanned statements can be analyzed without relying on
+`pdf.js`.
 
 The page now supports dark mode automatically and features an improved layout for an epic experience.
 
