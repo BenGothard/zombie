@@ -5,7 +5,7 @@ import os
 from zombie_transactions import (
     find_recurring_transactions_from_rows,
     _load_rows,
-    _get_month,
+    guess_threshold,
 )
 
 FORM = """<!doctype html>
@@ -98,7 +98,7 @@ class UploadHandler(http.server.BaseHTTPRequestHandler):
                 path = tf.name
             rows.extend(_load_rows(path))
         if rows:
-            threshold = self._guess_threshold_rows(rows)
+            threshold = guess_threshold(rows)
             results = find_recurring_transactions_from_rows(
                 rows, months_threshold=threshold, fuzzy=True
             )
@@ -111,13 +111,6 @@ class UploadHandler(http.server.BaseHTTPRequestHandler):
         self.end_headers()
         self.wfile.write(FORM.format(output=output).encode())
 
-    def _guess_threshold_rows(self, rows) -> int:
-        months = set()
-        for row in rows:
-            month = _get_month(row.get("Date") or row.get("Transaction Date") or "")
-            if month:
-                months.add(month)
-        return max(2, (len(months) + 1) // 2)
 
 def run(server_class=http.server.HTTPServer, handler_class=UploadHandler, port=8000):
     server_address = ("", port)

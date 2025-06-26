@@ -114,9 +114,19 @@ def _load_rows(file_path: str):
             return list(csv.DictReader(f))
 
 
+def guess_threshold(rows: Iterable[dict]) -> int:
+    """Return an automatic months threshold based on the rows provided."""
+    months = set()
+    for row in rows:
+        month = _get_month(row.get("Date") or row.get("Transaction Date") or "")
+        if month:
+            months.add(month)
+    return max(2, math.ceil(len(months) / 2))
+
+
 def find_recurring_transactions_from_rows(
     rows: Iterable[dict],
-    months_threshold: int = 2,
+    months_threshold: int | None = 2,
     fuzzy: bool = False,
     ratio_threshold: float = 0.8,
 ) -> List[Tuple[str, float]]:
@@ -128,6 +138,10 @@ def find_recurring_transactions_from_rows(
     is used. The ``ratio_threshold`` controls how close descriptions must be to
     be considered equal.
     """
+
+    rows = list(rows)
+    if months_threshold is None:
+        months_threshold = guess_threshold(rows)
 
     nlp = _load_spacy() if fuzzy else None
     if fuzzy and nlp is None:
@@ -186,7 +200,7 @@ def find_recurring_transactions_from_rows(
 
 def find_recurring_transactions(
     file_path: str,
-    months_threshold: int = 2,
+    months_threshold: int | None = 2,
     fuzzy: bool = False,
     ratio_threshold: float = 0.8,
 ) -> List[Tuple[str, float]]:
@@ -217,6 +231,12 @@ if __name__ == "__main__":
         help="Minimum number of months for a transaction to be considered recurring",
     )
     parser.add_argument(
+        "-a",
+        "--auto-threshold",
+        action="store_true",
+        help="Automatically determine the months threshold based on the input",
+    )
+    parser.add_argument(
         "--fuzzy",
         action="store_true",
         help="Enable fuzzy matching of descriptions using simple AI heuristics",
@@ -230,7 +250,7 @@ if __name__ == "__main__":
     args = parser.parse_args()
     for desc, amt in find_recurring_transactions(
         args.csv_file,
-        args.months,
+        None if args.auto_threshold else args.months,
         fuzzy=args.fuzzy,
         ratio_threshold=args.ratio_threshold,
     ):
