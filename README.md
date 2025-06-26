@@ -62,3 +62,27 @@ python upload_server.py
 ```
 
 Open [http://localhost:8000](http://localhost:8000) in your browser to upload a CSV, text, PDF or image file and view recurring transactions. PDF and image parsing require the optional `PyPDF2`, `pytesseract` and `Pillow` packages.
+
+## Plaid bank integration
+To fetch transactions directly from your bank, first install the optional
+`plaid-python` and `flask` packages and set the following environment variables:
+
+```
+PLAID_CLIENT_ID=<your client id>
+PLAID_SECRET=<your secret>
+PLAID_ENV=sandbox  # or 'development' / 'production'
+```
+
+Run `plaid_link_server.py` and open [http://localhost:5000](http://localhost:5000)
+ in your browser. Use the Plaid Link flow to connect your account. The resulting
+access token will be saved to `plaid_access_token.txt`.
+
+Transactions can then be downloaded and analyzed:
+
+```bash
+python plaid_fetch.py plaid_access_token.txt --analyze
+```
+
+The script will fetch recent transactions, save them to CSV when requested and
+report any recurring charges using the same logic as the CLI and web interface.
+
