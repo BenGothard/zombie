@@ -3,7 +3,6 @@ import cgi
 import tempfile
 import os
 from zombie_transactions import (
-    find_recurring_transactions,
     find_recurring_transactions_from_rows,
     _load_rows,
     _get_month,
@@ -111,15 +110,6 @@ class UploadHandler(http.server.BaseHTTPRequestHandler):
         self.send_header("Content-Type", "text/html")
         self.end_headers()
         self.wfile.write(FORM.format(output=output).encode())
-
-    def _guess_threshold(self, path: str) -> int:
-        rows = _load_rows(path)
-        months = set()
-        for row in rows:
-            month = _get_month(row.get("Date") or row.get("Transaction Date") or "")
-            if month:
-                months.add(month)
-        return max(2, (len(months) + 1) // 2)
 
     def _guess_threshold_rows(self, rows) -> int:
         months = set()
