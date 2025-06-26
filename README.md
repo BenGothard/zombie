@@ -9,7 +9,9 @@ Prepare a CSV file with at least `Date`, `Description` and `Amount` columns. Run
 python zombie_transactions.py transactions.csv -n 3
 ```
 
-PDF statements can also be analyzed if the optional `PyPDF2` dependency is installed.  
+PDF statements can also be analyzed when `PyPDF2` or `pdfminer.six` are available.
+If these libraries cannot extract text, the tool will attempt OCR when `pdf2image`,
+`pytesseract` and `Pillow` are installed.
 Text files (`.txt`) and image files containing statement screenshots (`.png`, `.jpg`) are supported when `pytesseract` and `Pillow` are available:
 
 ```bash
@@ -36,8 +38,8 @@ The web interface is now completely self contained. You can open
 analyze CSV files or simple PDF statements. Parsing and grouping of
 descriptions now relies on a lightweight AI model that runs entirely in your
 browser so recurring transactions are found even when descriptions vary
-slightly. PDF parsing is best effort and may fail on heavily compressed
-documents.
+slightly. PDF parsing now falls back to client-side OCR when direct extraction
+fails so even scanned statements can be analyzed.
 
 The page now supports dark mode automatically and features an improved layout for an epic experience.
 
