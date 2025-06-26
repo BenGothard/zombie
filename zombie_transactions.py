@@ -22,17 +22,44 @@ def _load_rows(file_path: str):
     """Return a list of CSV dict rows from supported files."""
     lower = file_path.lower()
     if lower.endswith(".pdf"):
+        text = ""
         try:
             from PyPDF2 import PdfReader
-        except ImportError as e:
-            raise RuntimeError("PDF support requires PyPDF2 package") from e
 
-        text = ""
-        reader = PdfReader(file_path)
-        for page in reader.pages:
-            page_text = page.extract_text()
-            if page_text:
-                text += page_text + "\n"
+            reader = PdfReader(file_path)
+            for page in reader.pages:
+                page_text = page.extract_text()
+                if page_text:
+                    text += page_text + "\n"
+        except ImportError:
+            reader = None
+        except Exception:
+            # PyPDF2 is present but failed to parse; fall back to other methods
+            pass
+
+        if not text.strip():
+            try:
+                from pdfminer.high_level import extract_text
+
+                text = extract_text(file_path) or ""
+            except Exception:
+                text = ""
+
+        if not text.strip():
+            try:
+                from pdf2image import convert_from_path
+                from PIL import Image
+                import pytesseract
+
+                images = convert_from_path(file_path)
+                for img in images:
+                    text += pytesseract.image_to_string(img) + "\n"
+            except Exception:
+                pass
+
+        if not text.strip():
+            raise RuntimeError("Unable to extract text from PDF")
+
         csv_io = io.StringIO(text)
         return list(csv.DictReader(csv_io))
     elif lower.endswith(('.png', '.jpg', '.jpeg')):
