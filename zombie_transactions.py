@@ -3,6 +3,25 @@ from collections import defaultdict
 from datetime import datetime
 from typing import List, Tuple, Dict, Iterable
 import io
+import math
+
+_SPACY_NLP = None
+
+
+def _load_spacy():
+    """Return a loaded spaCy model or ``None`` if unavailable."""
+    global _SPACY_NLP
+    if _SPACY_NLP is not None:
+        return _SPACY_NLP or None
+    try:
+        import spacy  # type: ignore
+        try:
+            _SPACY_NLP = spacy.load("en_core_web_md")
+        except Exception:
+            _SPACY_NLP = spacy.load("en_core_web_sm")
+    except Exception:
+        _SPACY_NLP = False
+    return _SPACY_NLP or None
 
 
 def _get_month(date_str: str) -> str | None:
@@ -39,6 +58,18 @@ def _load_rows(file_path: str):
 
         if not text.strip():
             try:
+                import pdfplumber
+
+                with pdfplumber.open(file_path) as pdf:
+                    for page in pdf.pages:
+                        page_text = page.extract_text() or ""
+                        if page_text:
+                            text += page_text + "\n"
+            except Exception:
+                text = ""
+
+        if not text.strip():
+            try:
                 from pdfminer.high_level import extract_text
 
                 text = extract_text(file_path) or ""
@@ -53,7 +84,9 @@ def _load_rows(file_path: str):
 
                 images = convert_from_path(file_path)
                 for img in images:
-                    text += pytesseract.image_to_string(img) + "\n"
+                    text += pytesseract.image_to_string(
+                        img, config="--oem 3 --psm 6"
+                    ) + "\n"
             except Exception:
                 pass
 
@@ -71,7 +104,9 @@ def _load_rows(file_path: str):
                 "Image support requires Pillow and pytesseract packages"
             ) from e
 
-        text = pytesseract.image_to_string(Image.open(file_path))
+        text = pytesseract.image_to_string(
+            Image.open(file_path), config="--oem 3 --psm 6"
+        )
         csv_io = io.StringIO(text)
         return list(csv.DictReader(csv_io))
     else:
@@ -88,26 +123,44 @@ def find_recurring_transactions_from_rows(
     """Return recurring (description, amount) pairs from an iterable of rows.
 
     When ``fuzzy`` is ``True`` descriptions that are very similar will be grouped
-    together using :func:`difflib.SequenceMatcher`. The ``ratio_threshold``
-    controls how close descriptions must be to be considered equal.
+    together using spaCy embeddings when available. If spaCy or its language
+    model cannot be loaded, a fallback based on :func:`difflib.SequenceMatcher`
+    is used. The ``ratio_threshold`` controls how close descriptions must be to
+    be considered equal.
     """
 
-    if fuzzy:
+    nlp = _load_spacy() if fuzzy else None
+    if fuzzy and nlp is None:
         from difflib import SequenceMatcher
 
     seen: Dict[Tuple[str, float], set] = defaultdict(set)
+    vectors: Dict[Tuple[str, float], list] = {}
 
     def _match_key(desc: str, amount: float) -> Tuple[str, float] | None:
         if not fuzzy:
             return (desc, amount)
-        lower_desc = desc.lower()
-        for (known_desc, amt) in seen.keys():
-            if amt != amount:
-                continue
-            ratio = SequenceMatcher(None, lower_desc, known_desc.lower()).ratio()
-            if ratio >= ratio_threshold:
-                return (known_desc, amt)
-        return (desc, amount)
+        if nlp is not None:
+            vec = nlp(desc).vector
+            for (known_desc, amt), known_vec in vectors.items():
+                if amt != amount:
+                    continue
+                dot = sum(a * b for a, b in zip(vec, known_vec))
+                norm1 = math.sqrt(sum(a * a for a in vec))
+                norm2 = math.sqrt(sum(a * a for a in known_vec))
+                sim = dot / norm1 / norm2 if norm1 and norm2 else 0.0
+                if sim >= ratio_threshold:
+                    return (known_desc, amt)
+            vectors[(desc, amount)] = vec
+            return (desc, amount)
+        else:
+            lower_desc = desc.lower()
+            for (known_desc, amt) in seen.keys():
+                if amt != amount:
+                    continue
+                ratio = SequenceMatcher(None, lower_desc, known_desc.lower()).ratio()
+                if ratio >= ratio_threshold:
+                    return (known_desc, amt)
+            return (desc, amount)
 
     for row in rows:
         description = (row.get("Description") or row.get("Payee") or "").strip()
